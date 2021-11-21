@@ -12,11 +12,17 @@ except ImportError:
     import json
 
 
+__all__ = [
+    "Object",
+    "Serializer"
+]
+
+
 class WeakCache(abc.ABCMeta):
     """
-    The weak meta class is a metaclass structure that will cache the created
-    instances in a weak dictionary. This will ensure that the same class is
-    returned returning the memory footprint.
+    The WeakCache is a metaclass that will cache the created instances in a
+    weak dictionary. This will ensure that the same class is returned if the
+    initialization arguments have already been used.
     """
     def __init__(cls, *args, **kwargs):
         super(WeakCache, cls).__init__(*args, **kwargs)
@@ -36,9 +42,10 @@ class WeakCache(abc.ABCMeta):
 @six.add_metaclass(WeakCache)
 class Object(object):
     """
-    The base object contains a link to a path which at this stage can be a
-    file or directory. A file object can be provided that will link back to
-    the root of the exdir folder structure.
+    The Object contains a link to the provided path, which can be a file or
+    directory. It also contains a link to the File object. Any instance of
+    the Object is weak cached which will make sure the same instance of the
+    Object is returned to reduce the memory footprint.
     """
     def __init__(self, path, f):
         self._path = os.path.normpath(path)
@@ -91,20 +98,27 @@ class Object(object):
 
 class Serializer(Object):
     """
-    The serializer will allow for data to be read/written to/from disk using
-    the json format. The data will only be retrieved from disk when requested.
-    All changes are stored in memory first, these changes are marked as
-    unsaved.
+    The Serializer can serialize the data to disk and read it back out. The
+    data type can be provided as a class variable and this type is used as the
+    default. Changes are stored in memory first but can be committed to disk,
+    the File object keeps track of all these changes.
     """
     data_type = None
 
     def __init__(self, path, f):
         super(Serializer, self).__init__(path, f)
-        self._data = self.data_type() if callable(self.data_type) else self.data_type
+        self._data = self.default
         self._initialized = False
         self._unsaved_changes = False
 
     # ------------------------------------------------------------------------
+
+    @property
+    def default(self):
+        """
+        :return: Default value
+        """
+        return self.data_type() if callable(self.data_type) else self.data_type
 
     def has_unsaved_changes(self):
         """
@@ -118,11 +132,7 @@ class Serializer(Object):
         When unsaved changes are set the serializer object is attached or
         removed from the change log depending on the state.
         """
-        if not state:
-            self.file.unsaved_files.pop(self.path, None)
-        else:
-            self.file.unsaved_files[self.path] = self
-
+        self.file.handle_unsaved_changes(self, state)
         self._unsaved_changes = state
 
     # ------------------------------------------------------------------------
@@ -130,8 +140,9 @@ class Serializer(Object):
     @property
     def data(self):
         """
-        If the data has not been initialized yet it will be read from disk
-        using the json module.
+        Set the internal data by reading the file from disk if the path
+        exists. This internal data is returned every time tis property is
+        accessed.
 
         :return: Data
         """
@@ -158,8 +169,9 @@ class Serializer(Object):
         """
         Set the internal data of the serializer to the provided data, please
         note that if the data is mutable it is up to the user to ensure that
-        the data is not changed elsewhere. The data is validated against the
-        data type, if they do not match a value error will be raised.
+        the data is not changed elsewhere to make sure the changes are
+        recorded. The data is validated against the data type, if they do not
+        match a value error will be raised.
 
         :param data:
         """
@@ -172,14 +184,15 @@ class Serializer(Object):
             )
 
         self._data = data
+        self._initialized = True
         self.set_unsaved_changes(True)
 
     # ------------------------------------------------------------------------
 
     def commit(self):
         """
-        Write the current data to disk. If a file already exists it will
-        simply be overwritten.
+        Write the current data to disk. If the directory doesn't exist yet it
+        will be created.
         """
         directory = os.path.split(self.path)[0]
         if not os.path.exists(directory):
@@ -193,10 +206,11 @@ class Serializer(Object):
 
     def clear_cache(self, commit_changes=True):
         """
-        Reset the internal data in the serializer. If there are unsaved
-        changes they are committed first by default. After this the data
-        variable is reset to 0 and the initialization state set to False.
-        This will trigger the data to be read from disk again when requested.
+        Clear the internal data in the serializer. If there are unsaved
+        changes it is possible to have them committed first. After this the
+        data variable is reset to its default and the initialization state
+        set to False. This will trigger the data to be read from disk again
+        when requested.
 
         :param bool commit_changes:
         """
@@ -205,5 +219,16 @@ class Serializer(Object):
         else:
             self.set_unsaved_changes(False)
 
-        self._data = self.data_type() if callable(self.data_type) else self.data_type
+        self._data = self.default
         self._initialized = False
+
+    def delete(self):
+        """
+        Remove the path from disk. The initialization, data and unsaved
+        changes states are reset to reflect that the file doesn't exist
+        anymore.
+        """
+        super(Serializer, self).delete()
+        self._initialized = False
+        self._data = self.default
+        self.set_unsaved_changes(False)

@@ -3,11 +3,13 @@ import collections
 from exdir import base
 
 
+__all__ = ["Attribute"]
+
+
 class Attribute(base.Serializer, collections.MutableMapping):
     """
-    Use the Serializer to read/write data to/from disk but using the
-    MutableMapping functionality to be able to use the serializer as a
-    dictionary.
+    The Attribute uses a MutableMapping subclass to be able to serialize the
+    data using a dictionary style interaction.
     """
     data_type = collections.OrderedDict
 

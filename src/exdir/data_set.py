@@ -4,11 +4,15 @@ from exdir import base
 from exdir import attribute
 
 
+__all__ = ["DataSet"]
+
+
 class DataSet(attribute.Attribute):
     """
-    DataSet subclasses the attribute, but the data is rerouted to its own file
-    which will ensure that the heavy data is only loaded when required. But a
-    small header file is created to keep track of the data sets in the folder.
+    The DataSet uses a Attribute subclass to be able to serialize the data
+    using a dictionary style interaction. The values are re-routed to be saved
+    as their own individual files. This will ensure that the data will only be
+    read from disk when required.
     """
     def __setitem__(self, key, value):
         """

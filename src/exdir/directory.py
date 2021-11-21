@@ -1,4 +1,5 @@
 import os
+import weakref
 import collections
 
 from exdir import base
@@ -6,20 +7,28 @@ from exdir import attribute
 from exdir import data_set
 
 
+__all__ = [
+    "Directory",
+    "File"
+]
+
+
 class Directory(base.Object, collections.Mapping):
     """
-    The directory class is representation of a folder on disk. It can be
-    assumed the directory is a relative path to the 'file' directory and
-    allows for excess to child or parent directories and its meta data,
+    The Directory represents a folder on disk. It can be assumed the
+    directory is a relative path to the directory of the File object and
+    allows for excess to child or parent directories and its file data,
     attributes and data sets. New directories can be required which means
-    they will be created if they do not exist yet.
+    the Directory will be initialized if it exists or not. If a directory
+    doesn't exist it will be stored in memory but still listed as one of
+    the current Directories children.
     """
     def __init__(self, path, f):
         super(Directory, self).__init__(path, f)
-
+        self._memory = weakref.WeakValueDictionary()
         self._meta = attribute.Attribute(os.path.join(self.path, ".meta"), self.file)
         self._attr = attribute.Attribute(os.path.join(self.path, ".attributes"), self.file)
-        self._data_set = data_set.DataSet(os.path.join(self.path, ".data_set"), self.file)
+        self._data_set = data_set.DataSet(os.path.join(self.path, ".data_sets"), self.file)
 
     def __getitem__(self, item):
         """
@@ -27,15 +36,18 @@ class Directory(base.Object, collections.Mapping):
         :return: Directory
         :rtype: Directory
         :raise KeyError: When the constructed path doesn't exist.
-        :raise KeyError: When the constructed path isn't a storage.
+        :raise KeyError: When the constructed path isn't a directory.
         """
+        if item in self._memory:
+            return self._memory[item]
+
         path = os.path.join(self.path, item)
         path = os.path.normpath(path)
         if not os.path.exists(path):
-            raise KeyError("Path '{}' doesn't exist.")
+            raise KeyError("Path '{}' doesn't exist.".format(self.path))
 
         if not os.path.isdir(path):
-            raise KeyError("Path '{}' is not a storage.")
+            raise KeyError("Path '{}' is not a directory.".format(self.path))
 
         return Directory(path, self.file)
 
@@ -51,6 +63,7 @@ class Directory(base.Object, collections.Mapping):
         :rtype: generator[Directory]
         """
         directories = next(os.walk(str(self.path)))[1]
+        directories = set(directories + list(self._memory.keys()))
         for name in sorted(directories):
             yield Directory(os.path.join(self.path, name), self.file)
 
@@ -118,7 +131,9 @@ class Directory(base.Object, collections.Mapping):
             raise OSError("Unable to create folder from path '{}', "
                           "it already exists.".format(directory))
 
-        return Directory(directory, self.file)
+        directory_object = Directory(directory, self.file)
+        self._memory[name] = directory_object
+        return directory_object
 
     def require_group(self, name):
         """
@@ -141,36 +156,45 @@ class Directory(base.Object, collections.Mapping):
 
         :param bool commit_changes:
         """
-        for attr in attribute.Attribute.cache.values():
-            if attr.path.startswith(self.path):
-                attr.clear_cache(commit_changes=commit_changes)
-
-        for data in data_set.DataSet.cache.values():
-            if data.path.startswith(self.path):
-                data.clear_cache(commit_changes=commit_changes)
+        for cls in [attribute.Attribute, data_set.DataSet]:
+            for instance in cls.cache.values():
+                if instance.path.startswith(self.path):
+                    instance.clear_cache(commit_changes=commit_changes)
 
 
 class File(Directory):
     def __init__(self, directory):
         super(File, self).__init__(directory, self)
-        self.unsaved_files = {}
+        self.unsaved_changes = {}
 
         if not os.path.exists(self.path):
             raise OSError("File '{}' doesn't exist.".format(self.path))
 
     # ------------------------------------------------------------------------
 
-    def has_unsaved_files(self):
+    def has_unsaved_changes(self):
         """
         :return: Unsaved files state
         :rtype: bool
         """
-        return bool(self.unsaved_files)
+        return bool(self.unsaved_changes)
+
+    def handle_unsaved_changes(self, serializer, add=True):
+        """
+        :param Serializer serializer:
+        :param bool add:
+        """
+        if add:
+            self.unsaved_changes[serializer.path] = serializer
+        else:
+            self.unsaved_changes.pop(self.path, None)
+
+    # ------------------------------------------------------------------------
 
     def commit(self):
         """
         Loop over all unsaved changes and commit them individually. This will
         force any changes within the file to be written to disk.
         """
-        for serializer in self.unsaved_files.values():
+        for serializer in self.unsaved_changes.values():
             serializer.commit()
