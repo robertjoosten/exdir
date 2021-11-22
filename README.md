@@ -14,7 +14,7 @@ disk.
 import exdir
 
 # initialize object, create a group and add data
-file_object = exdir.File("/path/to/directory")
+file_object = exdir.File("example.rdf")
 dir_object = file_object.require_group("group")
 dir_object.attr["side"] = "l"
 dir_object.attr["name"] = "leg"
@@ -42,11 +42,11 @@ like in the hierarchy below.
 example.rdf (File, directory)
 │   .attributes (Attribute, file)
 │
-├── 2f5b2d4a-7548-4f4e-86a2-5016bd146492 (Directory, directory)
+├── group (Directory, directory)
 │   ├── .meta (Attribute, file)
 │   ├── .attributes (Attribute, file)
 │   ├── .data_sets (DataSet, file)
-│   └── weights (Attribute, file)
+│   └── weights (Serializer, file)
 ```
 
 ### Memory
