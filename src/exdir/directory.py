@@ -156,7 +156,7 @@ class Directory(base.Object, collections.Mapping):
 
         :param bool commit_changes:
         """
-        for cls in [attribute.Attribute, data_set.DataSet]:
+        for cls in [base.Serializer, attribute.Attribute, data_set.DataSet]:
             for instance in cls.cache.values():
                 if instance.path.startswith(self.path):
                     instance.clear_cache(commit_changes=commit_changes)
