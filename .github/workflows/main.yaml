@@ -1,4 +1,4 @@
-name: maya-unit-testing
+name: unit-testing
 
 on:
   push:
