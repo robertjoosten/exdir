@@ -13,7 +13,7 @@ __all__ = [
 ]
 
 
-class Directory(base.Object, collections.Mapping):
+class Directory(base.Deferred, collections.Mapping):
     """
     The Directory represents a folder on disk. It can be assumed the
     directory is a relative path to the directory of the File object and
@@ -37,6 +37,7 @@ class Directory(base.Object, collections.Mapping):
         :rtype: Directory
         :raise KeyError: When the constructed path doesn't exist.
         :raise KeyError: When the constructed path isn't a directory.
+        :raise KeyError: When the constructed path exists, but is pending deletion.
         """
         if item in self._memory:
             return self._memory[item]
@@ -45,11 +46,14 @@ class Directory(base.Object, collections.Mapping):
         path = os.path.normpath(path)
         if not os.path.exists(path):
             raise KeyError("Path '{}' doesn't exist.".format(self.path))
-
-        if not os.path.isdir(path):
+        elif not os.path.isdir(path):
             raise KeyError("Path '{}' is not a directory.".format(self.path))
 
-        return Directory(path, self.file)
+        obj = Directory(path, self.file)
+        if obj.pending_deletion():
+            raise KeyError("Path '{}' exists, but is pending deletion.".format(self.path))
+
+        return obj
 
     def __delitem__(self, item):
         """
@@ -65,7 +69,9 @@ class Directory(base.Object, collections.Mapping):
         directories = next(os.walk(str(self.path)))[1]
         directories = set(directories + list(self._memory.keys()))
         for name in sorted(directories):
-            yield Directory(os.path.join(self.path, name), self.file)
+            obj = Directory(os.path.join(self.path, name), self.file)
+            if not obj.pending_deletion():
+                yield obj
 
     def __len__(self):
         """
@@ -198,3 +204,5 @@ class File(Directory):
         """
         for serializer in self.unsaved_changes.values():
             serializer.commit()
+
+        self.unsaved_changes.clear()

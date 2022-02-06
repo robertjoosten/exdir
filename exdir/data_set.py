@@ -46,3 +46,15 @@ class DataSet(attribute.Attribute):
         """
         directory = os.path.split(self.path)[0]
         return base.Serializer(os.path.join(directory, item), self.file)
+
+    def commit(self):
+        """
+        Write the current data to disk. If the directory doesn't exist yet it
+        will be created. If the file is set for deletion the Objects delete
+        method is called.
+        """
+        super(DataSet, self).commit()
+
+        for key in self.keys():
+            serializer = self.serializer(key)
+            serializer.commit()

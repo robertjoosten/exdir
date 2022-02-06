@@ -30,9 +30,8 @@ class WeakCache(abc.ABCMeta):
 
     def __call__(cls, *args, **kwargs):
         key = str(args) + str(kwargs)
-        try:
-            instance = cls.cache[key]
-        except KeyError:
+        instance = cls.cache.get(key)
+        if instance is None:
             instance = super(WeakCache, cls).__call__(*args, **kwargs)
             cls.cache[key] = instance
 
@@ -50,6 +49,18 @@ class Object(object):
     def __init__(self, path, f):
         self._path = os.path.normpath(path)
         self._file = f
+
+    def __eq__(self, other):
+        if isinstance(other, Object):
+            other = other.path
+
+        return self.path == other
+
+    def __ne__(self, other):
+        if isinstance(other, Object):
+            other = other.path
+
+        return self.path != other
 
     def __repr__(self):
         return "<{}.{} object to '{}'>".format(
@@ -96,29 +107,25 @@ class Object(object):
             os.remove(self.path)
 
 
-class Serializer(Object):
+class Deferred(Object):
     """
-    The Serializer can serialize the data to disk and read it back out. The
-    data type can be provided as a class variable and this type is used as the
-    default. Changes are stored in memory first but can be committed to disk,
-    the File object keeps track of all these changes.
+    The Deferred objects will defer deletion until the commit method is
+    called. The commit messaged are handled through the recording of
+    unsaved changes.
     """
-    data_type = None
-
     def __init__(self, path, f):
-        super(Serializer, self).__init__(path, f)
-        self._data = self.default
-        self._initialized = False
+        super(Deferred, self).__init__(path, f)
         self._unsaved_changes = False
+        self._pending_deletion = False
 
     # ------------------------------------------------------------------------
 
-    @property
-    def default(self):
+    def pending_deletion(self):
         """
-        :return: Default value
+        :return: Pending deletion state
+        :rtype: bool
         """
-        return self.data_type() if callable(self.data_type) else self.data_type
+        return self._pending_deletion
 
     def has_unsaved_changes(self):
         """
@@ -134,6 +141,54 @@ class Serializer(Object):
         """
         self.file.handle_unsaved_changes(self, state)
         self._unsaved_changes = state
+
+    # ------------------------------------------------------------------------
+
+    def commit(self):
+        """
+        Write the current data to disk. If the directory doesn't exist yet it
+        will be created. If the file is set for deletion the Objects delete
+        method is called.
+        """
+        if self._pending_deletion:
+            if os.path.exists(self.path):
+                super(Deferred, self).delete()
+
+        self._pending_deletion = False
+        self.set_unsaved_changes(False)
+
+    def delete(self):
+        """
+        The deletion of the serializer is also deferred to the commit command.
+        This will keep in line with the methodology where all changes are
+        deferred.
+        """
+        self._pending_deletion = True
+        self.set_unsaved_changes(True)
+
+
+class Serializer(Deferred):
+    """
+    The Serializer can serialize the data to disk and read it back out. The
+    data type can be provided as a class variable and this type is used as the
+    default. Changes are stored in memory first but can be committed to disk,
+    the File object keeps track of all these changes.
+    """
+    data_type = None
+
+    def __init__(self, path, f):
+        super(Serializer, self).__init__(path, f)
+        self._data = self.default
+        self._initialized = False
+
+    # ------------------------------------------------------------------------
+
+    @property
+    def default(self):
+        """
+        :return: Default value
+        """
+        return self.data_type() if callable(self.data_type) else self.data_type
 
     # ------------------------------------------------------------------------
 
@@ -185,6 +240,7 @@ class Serializer(Object):
 
         self._data = data
         self._initialized = True
+        self._pending_deletion = False
         self.set_unsaved_changes(True)
 
     # ------------------------------------------------------------------------
@@ -192,16 +248,21 @@ class Serializer(Object):
     def commit(self):
         """
         Write the current data to disk. If the directory doesn't exist yet it
-        will be created.
+        will be created. If the file is set for deletion the Objects delete
+        method is called.
         """
-        directory = os.path.split(self.path)[0]
-        if not os.path.exists(directory):
-            os.makedirs(directory, mode=0o777)
+        if self._pending_deletion:
+            super(Serializer, self).commit()
+        else:
+            directory = os.path.split(self.path)[0]
+            if not os.path.exists(directory):
+                os.makedirs(directory, mode=0o777)
 
-        with open(self.path, "w") as f:
-            json.dump(self._data, f, indent=4)
+            with open(self.path, "w") as f:
+                json.dump(self._data, f, indent=4)
 
         self._initialized = True
+        self._pending_deletion = False
         self.set_unsaved_changes(False)
 
     def clear_cache(self, commit_changes=True):
@@ -221,14 +282,14 @@ class Serializer(Object):
 
         self._data = self.default
         self._initialized = False
+        self._pending_deletion = False
 
     def delete(self):
         """
-        Remove the path from disk. The initialization, data and unsaved
-        changes states are reset to reflect that the file doesn't exist
-        anymore.
+        The deletion of the serializer is also deferred to the commit command.
+        This will keep in line with the methodology where all changes are
+        deferred.
         """
         super(Serializer, self).delete()
-        self._initialized = False
         self._data = self.default
-        self.set_unsaved_changes(False)
+        self._initialized = False

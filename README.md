@@ -4,6 +4,15 @@ existing formats, such as [ExDir](https://github.com/CINPLA/exdir) and HDF5.
 What sets this implementation of ExDir apart is that all the data is stored
 in memory and only saved to disk when the file is committed.
 
+## Install
+The package can be installed by running the install command on the setup.py
+in the root of the package, the example below also shows how to run the test
+suite to make sure everything is working as expected.
+```
+python setup.py test
+python setup.py install
+```
+
 ## Usage
 The directory structure and data are stored in memory when requiring the
 directories and adjusting their internal data, the examples below show how 
