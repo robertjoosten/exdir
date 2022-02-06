@@ -4,7 +4,7 @@ import six
 import sys
 import shutil
 import weakref
-import collections
+from collections import OrderedDict
 
 try:
     import ujson as json
@@ -204,7 +204,7 @@ class Serializer(Deferred):
         if not self._initialized and self.exists():
             try:
                 with open(self.path, "r") as f:
-                    self._data = json.load(f, object_pairs_hook=collections.OrderedDict)
+                    self._data = json.load(f, object_pairs_hook=OrderedDict)
                 self._initialized = True
                 self.set_unsaved_changes(False)
             except Exception as e:

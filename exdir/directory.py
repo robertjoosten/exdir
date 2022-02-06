@@ -1,6 +1,6 @@
 import os
 import weakref
-import collections
+from six.moves.collections_abc import Mapping
 
 from exdir import base
 from exdir import attribute
@@ -13,7 +13,7 @@ __all__ = [
 ]
 
 
-class Directory(base.Deferred, collections.Mapping):
+class Directory(base.Deferred, Mapping):
     """
     The Directory represents a folder on disk. It can be assumed the
     directory is a relative path to the directory of the File object and

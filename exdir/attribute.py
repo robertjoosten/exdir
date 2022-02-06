@@ -1,4 +1,6 @@
-import collections
+from collections import OrderedDict
+from six.moves.collections_abc import MutableMapping
+
 
 from exdir import base
 
@@ -6,12 +8,12 @@ from exdir import base
 __all__ = ["Attribute"]
 
 
-class Attribute(base.Serializer, collections.MutableMapping):
+class Attribute(base.Serializer, MutableMapping):
     """
     The Attribute uses a MutableMapping subclass to be able to serialize the
     data using a dictionary style interaction.
     """
-    data_type = collections.OrderedDict
+    data_type = OrderedDict
 
     def __setitem__(self, key, value):
         """
