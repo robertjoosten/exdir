@@ -9,8 +9,8 @@ The package can be installed by running the install command on the setup.py
 in the root of the package, the example below also shows how to run the test
 suite to make sure everything is working as expected.
 ```
-python setup.py test
 python setup.py install
+python -m unittest discover tests -v
 ```
 
 ## Usage
