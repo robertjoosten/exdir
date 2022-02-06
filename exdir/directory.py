@@ -202,8 +202,7 @@ class File(Directory):
         Loop over all unsaved changes and commit them individually. This will
         force any changes within the file to be written to disk.
         """
-        for path in list(self.unsaved_changes.keys()):
-            serializer = self.unsaved_changes.pop(path)
+        for serializer in self.unsaved_changes.values():
             serializer.commit()
 
         self.unsaved_changes.clear()
