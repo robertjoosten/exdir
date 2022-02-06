@@ -32,7 +32,7 @@ class DeferredTestCase(unittest.TestCase):
 
     def setUp(self):
         self.path = os.path.join(tempfile.gettempdir(), "exdir")
-        os.makedirs(self.path, mode=0o777, exist_ok=True)
+        os.makedirs(self.path, mode=0o777)
 
         file_path = os.path.join(tempfile.gettempdir(), "exdir", "exdir.json")
         self.file = directory.File(self.path)
@@ -68,7 +68,7 @@ class SerializerTestCase(unittest.TestCase):
 
     def setUp(self):
         self.path = os.path.join(tempfile.gettempdir(), "exdir")
-        os.makedirs(self.path, mode=0o777, exist_ok=True)
+        os.makedirs(self.path, mode=0o777)
 
         file_path = os.path.join(tempfile.gettempdir(), "exdir", "exdir.json")
         f = directory.File(self.path)

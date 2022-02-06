@@ -9,7 +9,7 @@ class DirectoryTestCase(unittest.TestCase):
 
     def setUp(self):
         self.path = os.path.join(tempfile.gettempdir(), "exdir")
-        os.makedirs(self.path, mode=0o777, exist_ok=True)
+        os.makedirs(self.path, mode=0o777)
 
         self.file = directory.File(self.path)
 
@@ -62,7 +62,7 @@ class FileTestCase(unittest.TestCase):
 
     def setUp(self):
         self.path = os.path.join(tempfile.gettempdir(), "exdir")
-        os.makedirs(self.path, mode=0o777, exist_ok=True)
+        os.makedirs(self.path, mode=0o777)
 
         self.file = directory.File(self.path)
 
