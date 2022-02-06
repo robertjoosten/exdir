@@ -162,7 +162,7 @@ class Directory(base.Deferred, collections.Mapping):
 
         :param bool commit_changes:
         """
-        for cls in [attribute.Attribute, data_set.DataSet]:
+        for cls in [base.Serializer, attribute.Attribute, data_set.DataSet]:
             for instance in cls.cache.values():
                 if instance.path.startswith(self.path):
                     instance.clear_cache(commit_changes=commit_changes)
@@ -202,7 +202,8 @@ class File(Directory):
         Loop over all unsaved changes and commit them individually. This will
         force any changes within the file to be written to disk.
         """
-        for serializer in self.unsaved_changes.values():
+        for path in list(self.unsaved_changes.keys()):
+            serializer = self.unsaved_changes.pop(path)
             serializer.commit()
 
         self.unsaved_changes.clear()
