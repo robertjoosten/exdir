@@ -1,4 +1,4 @@
-name: unit-testing
+name: maya-unit-testing
 
 on:
   push:
@@ -8,36 +8,17 @@ on:
   workflow_dispatch:
 
 jobs:
-  maya:
+  build:
     runs-on: ubuntu-latest
-
     strategy:
-      fail-fast: false
-
       matrix:
-       include:
-         - maya: "2017"
-           pip: "2.7/get-pip.py"
-         - maya: "2018"
-           pip: "2.7/get-pip.py"
-         - maya: "2019"
-           pip: "2.7/get-pip.py"
-         - maya: "2020"
-           pip: "2.7/get-pip.py"
-         - maya: "2022"
-           pip: "get-pip.py"
-
+        python-version: [ "2.x", "3.x" ]
+    name: Python ${{ matrix.python-version }} Testing
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v1
-
-      - name: Environment
-        run: |
-          wget https://bootstrap.pypa.io/pip/${{ matrix.pip }}
-          mayapy get-pip.py --user
-          mayapy -m pip install --user numpy scipy
-
-      - name: Testing
-        run: |
-          export PYTHONPATH=$(pwd)/scripts
-          mayapy ./tests/bin/run.py
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
+      - run: python setup.py test
