@@ -14,6 +14,7 @@ except ImportError:
 
 __all__ = [
     "Object",
+    "Deferred",
     "Serializer"
 ]
 
@@ -30,8 +31,9 @@ class WeakCache(abc.ABCMeta):
 
     def __call__(cls, *args, **kwargs):
         key = str(args) + str(kwargs)
-        instance = cls.cache.get(key)
-        if instance is None:
+        try:
+            instance = cls.cache[key]
+        except KeyError:
             instance = super(WeakCache, cls).__call__(*args, **kwargs)
             cls.cache[key] = instance
 
