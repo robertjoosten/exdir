@@ -206,3 +206,12 @@ class File(Directory):
             serializer.commit()
 
         self.unsaved_changes.clear()
+        
+    def close(self):
+        """
+        Loop all cached attributes and data sets and if the are a child of the
+        current directory they will have their cache cleared without committing
+        changes. Meaning that if the data is requested again it will be 
+        retrieved from disk.
+        """
+        self.clear_cache(commit_changes=False)
